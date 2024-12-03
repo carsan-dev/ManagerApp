@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Habilitar acceso al directorio cache -->
+    <cache-path name="cache" path="." />
+    <!-- Habilitar acceso al directorio files -->
+    <files-path name="files" path="." />
+    <!-- Habilitar acceso al directorio de documentos -->
+    <external-files-path name="external_files" path="Documents/" />
+</paths>
