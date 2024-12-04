@@ -89,7 +89,7 @@ const PdfScreen: React.FC<Props> = ({route}) => {
             margin-top: 20px;
           }
           th, td {
-            border: 1px solid #ddd;
+            border: 1px solid #666;
             padding: 12px;
             text-align: center;
           }
