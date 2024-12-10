@@ -9,7 +9,7 @@ import {RouteProp} from '@react-navigation/native';
 
 type RootStackParamList = {
   Home: undefined;
-  Pdf: {alumnos: string[]};
+  Pdf: {alumnos: Alumno[]};
 };
 
 type PdfScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Pdf'>;
@@ -18,6 +18,11 @@ type PdfScreenRouteProp = RouteProp<RootStackParamList, 'Pdf'>;
 type Props = {
   navigation: PdfScreenNavigationProp;
   route: PdfScreenRouteProp;
+};
+
+type Alumno = {
+  nombre: string;
+  cantidad: number;
 };
 
 const PdfScreen: React.FC<Props> = ({route}) => {
@@ -74,7 +79,7 @@ const PdfScreen: React.FC<Props> = ({route}) => {
             .map(
               alumno => `
               <tr>
-                <td>${alumno}</td>
+                <td>${alumno.nombre}</td>
                 ${meses.map(() => `<td></td>`).join('')}
               </tr>
             `,

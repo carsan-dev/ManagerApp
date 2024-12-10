@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type RootStackParamList = {
   Home: undefined;
-  Pdf: {alumnos: string[]};
+  Pdf: {alumnos: Alumno[]};
 };
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
@@ -24,9 +24,17 @@ type Props = {
   navigation: HomeScreenNavigationProp;
 };
 
+type Alumno = {
+  nombre: string;
+  cantidad: number;
+};
+
 const HomeScreen: React.FC<Props> = ({navigation}) => {
   const [alumno, setAlumno] = useState('');
-  const [alumnos, setAlumnos] = useState<string[]>([]);
+  const [cantidad, setCantidad] = useState('');
+  const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [editandoAlumno, setEditandoAlumno] = useState<string | null>(null);
+  const [nuevaCantidad, setNuevaCantidad] = useState<string>('');
   const theme = useTheme();
 
   // Cargar alumnos al iniciar
@@ -38,7 +46,7 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
           setAlumnos(JSON.parse(alumnosGuardados));
         }
       } catch (error) {
-        console.error(error);
+        console.error('Error al cargar alumnos:', error);
       }
     };
 
@@ -51,7 +59,7 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
       try {
         await AsyncStorage.setItem('alumnos', JSON.stringify(alumnos));
       } catch (error) {
-        console.error(error);
+        console.error('Error al guardar alumnos:', error);
       }
     };
 
@@ -60,13 +68,32 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const agregarAlumno = () => {
     const nombre = alumno.trim();
+    const cantidadNum = cantidad.trim() === '' ? 0 : parseFloat(cantidad.trim());
+
     if (nombre === '') {
       Alert.alert('Error', 'El nombre del alumno no puede estar vacío.');
-    } else if (alumnos.includes(nombre)) {
+    } else if (alumnos.some(al => al.nombre === nombre)) {
       Alert.alert('Error', 'El alumno ya está en la lista.');
     } else {
-      setAlumnos([...alumnos, nombre]);
+      setAlumnos([...alumnos, {nombre, cantidad: cantidadNum}]);
       setAlumno('');
+      setCantidad('');
+    }
+  };
+
+  const guardarEdicion = (nombre: string) => {
+    const cantidadNum = parseFloat(nuevaCantidad.trim());
+
+    if (isNaN(cantidadNum) || cantidadNum <= 0) {
+      Alert.alert('Error', 'La cantidad debe ser un número mayor que 0.');
+    } else {
+      setAlumnos(
+        alumnos.map(al =>
+          al.nombre === nombre ? {...al, cantidad: cantidadNum} : al,
+        ),
+      );
+      setEditandoAlumno(null);
+      setNuevaCantidad('');
     }
   };
 
@@ -80,7 +107,7 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
           text: 'Eliminar',
           style: 'destructive',
           onPress: () => {
-            setAlumnos(alumnos.filter(al => al !== nombre));
+            setAlumnos(alumnos.filter(al => al.nombre !== nombre));
           },
         },
       ],
@@ -92,7 +119,7 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
       'Eliminar todos los alumnos',
       '¿Estás seguro de que deseas eliminar todos los datos?',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {text: 'Cancelar', style: 'cancel'},
         {
           text: 'Eliminar',
           style: 'destructive',
@@ -110,6 +137,10 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
     );
   };
 
+  const total = alumnos.reduce((acc, al) => acc + al.cantidad, 0);
+  const proporcionalMinerva = total * 0.6;
+  const proporcionalLola = total * 0.4;
+
   return (
     <ScrollView contentContainerStyle={{flexGrow: 1, padding: 16}}>
       <TextInput
@@ -117,6 +148,14 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
         value={alumno}
         onChangeText={text => setAlumno(text)}
         mode="outlined"
+        style={{marginBottom: 16}}
+      />
+      <TextInput
+        label="Cantidad mensual (€)"
+        value={cantidad}
+        onChangeText={text => setCantidad(text)}
+        mode="outlined"
+        keyboardType="numeric"
         style={{marginBottom: 16}}
       />
       <Button
@@ -132,27 +171,99 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
       {alumnos.length > 0 && (
         <>
           <List.Section>
-            {alumnos.map((nombre, index) => (
+            {alumnos.map((alumno, index) => (
               <View key={index}>
                 <List.Item
-                  title={nombre}
-                  right={() => (
-                    <TouchableOpacity onPress={() => eliminarAlumno(nombre)}>
-                      <Text
-                        style={{
-                          color: theme.colors.error,
-                          fontWeight: 'bold',
-                          fontSize: 16,
-                        }}>
-                        X
-                      </Text>
-                    </TouchableOpacity>
-                  )}
+                  title={() =>
+                    editandoAlumno === alumno.nombre ? (
+                      <View
+                        style={{flexDirection: 'row', alignItems: 'center'}}>
+                        <TextInput
+                          value={nuevaCantidad}
+                          onChangeText={text => setNuevaCantidad(text)}
+                          keyboardType="numeric"
+                          placeholder="Nueva cantidad (€)"
+                          mode="outlined"
+                          style={{flex: 1, marginRight: 8}}
+                        />
+                        <Button
+                          onPress={() => guardarEdicion(alumno.nombre)}
+                          mode="contained"
+                          compact>
+                          Guardar
+                        </Button>
+                        <Button
+                          onPress={() => setEditandoAlumno(null)}
+                          mode="text"
+                          compact>
+                          Cancelar
+                        </Button>
+                      </View>
+                    ) : (
+                      <Text>{`${alumno.nombre} - ${alumno.cantidad.toFixed(
+                        2,
+                      )}€`}</Text>
+                    )
+                  }
+                  right={() =>
+                    editandoAlumno === alumno.nombre ? null : (
+                      <View
+                        style={{flexDirection: 'row', alignItems: 'center'}}>
+                        <TouchableOpacity
+                          onPress={() => {
+                            setEditandoAlumno(alumno.nombre);
+                            setNuevaCantidad(alumno.cantidad.toString());
+                          }}
+                          style={{marginRight: 16}}>
+                          <Text style={{color: theme.colors.primary}}>
+                            Editar 
+                          </Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => eliminarAlumno(alumno.nombre)}>
+                          <Text
+                            style={{
+                              color: theme.colors.error,
+                            }}>
+                            Eliminar
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    )
+                  }
                 />
                 <Divider />
               </View>
             ))}
           </List.Section>
+          <View style={{marginTop: 16}}>
+            <Text
+              style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                marginBottom: 8,
+                textAlign: 'center',
+              }}>
+              Total: {total.toFixed(2)} €
+            </Text>
+            <Text
+              style={{
+                fontSize: 16,
+                color: theme.colors.primary,
+                marginBottom: 8,
+                textAlign: 'center',
+              }}>
+              Cantidad Proporcional Minerva: {proporcionalMinerva.toFixed(2)} €
+            </Text>
+            <Text
+              style={{
+                fontSize: 16,
+                color: theme.colors.primary,
+                textAlign: 'center',
+              }}>
+              Cantidad Proporcional Lola: {proporcionalLola.toFixed(2)} €
+            </Text>
+          </View>
           <Button
             mode="contained"
             onPress={() => navigation.navigate('Pdf', {alumnos})}
