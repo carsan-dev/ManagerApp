@@ -35,7 +35,7 @@ PilatesManagerApp es una aplicación móvil diseñada para la gestión financier
    ```
 2. Instala las dependencias necesarias:
    ```bash
-   cd pilates-manager-app
+   cd ManagerApp
    npm install
    ```
 3. Inicia la aplicación:
