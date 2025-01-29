@@ -68,7 +68,8 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
 
   const agregarAlumno = () => {
     const nombre = alumno.trim();
-    const cantidadNum = cantidad.trim() === '' ? 0 : parseFloat(cantidad.trim());
+    const cantidadNum =
+      cantidad.trim() === '' ? 0 : parseFloat(cantidad.trim());
 
     if (nombre === '') {
       Alert.alert('Error', 'El nombre del alumno no puede estar vacío.');
@@ -82,10 +83,11 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
   };
 
   const guardarEdicion = (nombre: string) => {
-    const cantidadNum = parseFloat(nuevaCantidad.trim());
+    const cantidadNum =
+      nuevaCantidad.trim() === '' ? 0 : parseFloat(nuevaCantidad.trim());
 
-    if (isNaN(cantidadNum) || cantidadNum <= 0) {
-      Alert.alert('Error', 'La cantidad debe ser un número mayor que 0.');
+    if (isNaN(cantidadNum) || cantidadNum < 0) {
+      Alert.alert('Error', 'La cantidad debe ser un número mayor o igual a 0.');
     } else {
       setAlumnos(
         alumnos.map(al =>
@@ -216,7 +218,7 @@ const HomeScreen: React.FC<Props> = ({navigation}) => {
                           }}
                           style={{marginRight: 16}}>
                           <Text style={{color: theme.colors.primary}}>
-                            Editar 
+                            Editar
                           </Text>
                         </TouchableOpacity>
                         <TouchableOpacity
