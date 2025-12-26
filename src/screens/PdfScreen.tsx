@@ -1,16 +1,12 @@
-import React, {useState} from 'react';
-import {View, ActivityIndicator, Alert, Platform} from 'react-native';
-import {Button} from 'react-native-paper';
+import React, { useState } from 'react';
+import { View, ActivityIndicator, Alert, Platform } from 'react-native';
+import { Button } from 'react-native-paper';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import Share from 'react-native-share';
 import moment from 'moment';
-import {StackNavigationProp} from '@react-navigation/stack';
-import {RouteProp} from '@react-navigation/native';
-
-type RootStackParamList = {
-  Home: undefined;
-  Pdf: {alumnos: Alumno[]};
-};
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp } from '@react-navigation/native';
+import { RootStackParamList } from '../types';
 
 type PdfScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Pdf'>;
 type PdfScreenRouteProp = RouteProp<RootStackParamList, 'Pdf'>;
@@ -18,11 +14,6 @@ type PdfScreenRouteProp = RouteProp<RootStackParamList, 'Pdf'>;
 type Props = {
   navigation: PdfScreenNavigationProp;
   route: PdfScreenRouteProp;
-};
-
-type Alumno = {
-  nombre: string;
-  cantidad: number;
 };
 
 const PdfScreen: React.FC<Props> = ({route}) => {
