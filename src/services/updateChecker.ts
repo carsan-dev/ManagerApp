@@ -1,6 +1,9 @@
-import { Alert, Linking, Platform } from 'react-native';
+import { Alert, Platform, Linking, NativeModules } from 'react-native';
 import remoteConfig from '@react-native-firebase/remote-config';
+import ReactNativeBlobUtil from 'react-native-blob-util';
 import { version as currentVersion } from '../../package.json';
+
+const { InstallPermissionModule } = NativeModules;
 
 interface UpdateConfig {
   latestVersion: string;
@@ -16,8 +19,12 @@ const DEFAULT_CONFIG: UpdateConfig = {
   updateMessage: 'Hay una nueva versión disponible con mejoras y correcciones.',
 };
 
+// Callback para mostrar progreso de descarga
+type ProgressCallback = (progress: number) => void;
+
 class UpdateChecker {
   private initialized = false;
+  private isDownloading = false;
 
   async init() {
     if (this.initialized) return;
@@ -54,7 +61,7 @@ class UpdateChecker {
     return 0;
   }
 
-  async checkForUpdate(): Promise<void> {
+  async checkForUpdate(onProgress?: ProgressCallback): Promise<void> {
     if (Platform.OS !== 'android') return;
 
     try {
@@ -67,7 +74,7 @@ class UpdateChecker {
 
       // Comparar versiones
       if (this.compareVersions(latestVersion, currentVersion) > 0) {
-        this.showUpdateAlert(latestVersion, forceUpdate, updateUrl, updateMessage);
+        this.showUpdateAlert(latestVersion, forceUpdate, updateUrl, updateMessage, onProgress);
       }
     } catch (error) {
       console.error('Error checking for updates:', error);
@@ -78,7 +85,8 @@ class UpdateChecker {
     latestVersion: string,
     forceUpdate: boolean,
     updateUrl: string,
-    updateMessage: string
+    updateMessage: string,
+    onProgress?: ProgressCallback
   ) {
     const buttons: any[] = [];
 
@@ -90,12 +98,12 @@ class UpdateChecker {
     }
 
     buttons.push({
-      text: 'Actualizar',
+      text: 'Descargar e instalar',
       onPress: () => {
         if (updateUrl) {
-          Linking.openURL(updateUrl).catch((err) =>
-            console.error('Error opening update URL:', err)
-          );
+          this.downloadAndInstall(updateUrl, latestVersion, onProgress);
+        } else {
+          Alert.alert('Error', 'URL de actualización no disponible');
         }
       },
     });
@@ -106,6 +114,122 @@ class UpdateChecker {
       buttons,
       { cancelable: !forceUpdate }
     );
+  }
+
+  private async checkInstallPermission(): Promise<boolean> {
+    try {
+      if (InstallPermissionModule) {
+        const canInstall = await InstallPermissionModule.canInstallApks();
+        return canInstall;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error checking install permission:', error);
+      return true;
+    }
+  }
+
+  private async requestInstallPermission(): Promise<void> {
+    try {
+      if (InstallPermissionModule) {
+        await InstallPermissionModule.openInstallPermissionSettings();
+      }
+    } catch (error) {
+      console.error('Error opening install permission settings:', error);
+    }
+  }
+
+  private async downloadAndInstall(
+    url: string,
+    version: string,
+    onProgress?: ProgressCallback
+  ): Promise<void> {
+    if (this.isDownloading) {
+      Alert.alert('Descarga en curso', 'Ya se está descargando una actualización.');
+      return;
+    }
+
+    // Verificar permiso de instalación
+    const canInstall = await this.checkInstallPermission();
+    if (!canInstall) {
+      Alert.alert(
+        'Permiso requerido',
+        'Para instalar actualizaciones, necesitas habilitar la instalación de apps de fuentes desconocidas para Sports Manager.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Abrir ajustes',
+            onPress: () => this.requestInstallPermission(),
+          },
+        ]
+      );
+      return;
+    }
+
+    this.isDownloading = true;
+    const fileName = `SportsManager_${version}.apk`;
+    const downloadPath = `${ReactNativeBlobUtil.fs.dirs.DownloadDir}/${fileName}`;
+
+    try {
+      // Mostrar alerta de inicio de descarga
+      Alert.alert(
+        'Descargando actualización',
+        'La descarga ha comenzado. Recibirás una notificación cuando termine.',
+        [{ text: 'OK' }]
+      );
+
+      // Descargar el APK
+      const res = await ReactNativeBlobUtil.config({
+        fileCache: true,
+        path: downloadPath,
+        addAndroidDownloads: {
+          useDownloadManager: true,
+          notification: true,
+          title: `Actualizando Sports Manager a v${version}`,
+          description: 'Descargando actualización...',
+          mime: 'application/vnd.android.package-archive',
+          mediaScannable: true,
+        },
+      })
+        .fetch('GET', url)
+        .progress((received, total) => {
+          const progress = Math.round((received / total) * 100);
+          if (onProgress) {
+            onProgress(progress);
+          }
+        });
+
+      this.isDownloading = false;
+
+      // Instalar el APK
+      if (res && res.path()) {
+        await this.installApk(res.path());
+      }
+    } catch (error: any) {
+      this.isDownloading = false;
+      console.error('Error downloading update:', error);
+      Alert.alert(
+        'Error de descarga',
+        'No se pudo descargar la actualización. Verifica tu conexión e inténtalo de nuevo.',
+        [{ text: 'OK' }]
+      );
+    }
+  }
+
+  private async installApk(filePath: string): Promise<void> {
+    try {
+      await ReactNativeBlobUtil.android.actionViewIntent(
+        filePath,
+        'application/vnd.android.package-archive'
+      );
+    } catch (error) {
+      console.error('Error installing APK:', error);
+      Alert.alert(
+        'Instalación',
+        'El APK se ha descargado. Ábrelo desde tus descargas para instalarlo.',
+        [{ text: 'OK' }]
+      );
+    }
   }
 
   getCurrentVersion(): string {
