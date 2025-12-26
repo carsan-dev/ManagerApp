@@ -3,7 +3,7 @@ import { View, ActivityIndicator, Alert, Platform } from 'react-native';
 import { Button } from 'react-native-paper';
 import RNHTMLtoPDF from 'react-native-html-to-pdf';
 import Share from 'react-native-share';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types';
@@ -24,15 +24,15 @@ const PdfScreen: React.FC<Props> = ({route}) => {
     setIsGenerating(true);
 
     // Obtener la temporada actual
-    const mesActual = moment().month(); // 0 (Enero) a 11 (Diciembre)
+    const mesActual = dayjs().month(); // 0 (Enero) a 11 (Diciembre)
     let añoInicio, añoFin;
 
     if (mesActual >= 8) {
       // Si es septiembre (8) o después
-      añoInicio = moment().year();
+      añoInicio = dayjs().year();
       añoFin = añoInicio + 1;
     } else {
-      añoFin = moment().year();
+      añoFin = dayjs().year();
       añoInicio = añoFin - 1;
     }
 
