@@ -44,7 +44,7 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
   const [progress, setProgress] = useState('');
   const [pdfPath, setPdfPath] = useState<string | null>(null);
   const [temporada, setTemporada] = useState('');
-  const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('vertical');
 
   const cardScale = useSharedValue(0.9);
   const cardOpacity = useSharedValue(0);
