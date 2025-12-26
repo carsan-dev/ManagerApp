@@ -13,5 +13,5 @@ plugins {
 
 extensions.configure(com.facebook.react.ReactSettingsExtension) { ex -> ex.autolinkLibrariesFromCommand() }
 
-rootProject.name = 'PilatesManagerApp'
+rootProject.name = 'SportsManagerApp'
 include ':app'

@@ -1,4 +1,4 @@
-package com.pilatesmanagerapp
+package com.sportsmanagerapp
 
 import android.app.Application
 import com.facebook.react.PackageList
