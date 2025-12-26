@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { RootStackParamList } from '../types';
-import { theme } from '../theme';
+import { colors } from '../theme';
 import HomeScreen from '../screens/HomeScreen';
 import PdfScreen from '../screens/PdfScreen';
 import LoginScreen from '../screens/LoginScreen';
 import { AuthService, User } from '../services/auth';
-import { ActivityIndicator, View, TouchableOpacity } from 'react-native';
-import { Text } from 'react-native-paper';
+import { ActivityIndicator, View } from 'react-native';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -25,8 +24,8 @@ export const AppNavigator: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.gradientStart }}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -34,39 +33,16 @@ export const AppNavigator: React.FC = () => {
   return (
     <Stack.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.primary },
-        headerTintColor: '#fff',
+        headerShown: false,
       }}
     >
       {user ? (
         <>
-          <Stack.Screen
-            name="Home"
-            component={HomeScreen}
-            options={{
-              title: 'Lista de Alumnos',
-              headerRight: () => (
-                <TouchableOpacity
-                  onPress={() => AuthService.signOut()}
-                  style={{ marginRight: 16 }}
-                >
-                  <Text style={{ color: '#fff' }}>Salir</Text>
-                </TouchableOpacity>
-              ),
-            }}
-          />
-          <Stack.Screen
-            name="Pdf"
-            component={PdfScreen}
-            options={{ title: 'Generar PDF' }}
-          />
+          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="Pdf" component={PdfScreen} />
         </>
       ) : (
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{ headerShown: false }}
-        />
+        <Stack.Screen name="Login" component={LoginScreen} />
       )}
     </Stack.Navigator>
   );
