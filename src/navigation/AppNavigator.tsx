@@ -6,6 +6,7 @@ import HomeScreen from '../screens/HomeScreen';
 import PdfScreen from '../screens/PdfScreen';
 import LoginScreen from '../screens/LoginScreen';
 import { AuthService, User } from '../services/auth';
+import { updateChecker } from '../services/updateChecker';
 import { ActivityIndicator, View } from 'react-native';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -21,6 +22,13 @@ export const AppNavigator: React.FC = () => {
     });
     return unsubscribe;
   }, []);
+
+  // Verificar actualizaciones cuando el usuario está autenticado
+  useEffect(() => {
+    if (user) {
+      updateChecker.checkForUpdate();
+    }
+  }, [user]);
 
   if (loading) {
     return (
