@@ -1,6 +1,11 @@
 Para ejecutar el proyecto en android:
 
-- npx react-native run-android
+- npm start -- --reset-cache
+- npm run android
+
+Para matar el proceso si se queda pillado:
+
+- npx kill-port 8081
 
 Para compilar en .exe:
 
@@ -10,3 +15,6 @@ Para compilar en .exe:
 - npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 - cd android/
 - ./gradlew assembleDebug
+
+
+
