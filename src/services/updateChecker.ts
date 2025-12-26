@@ -1,4 +1,4 @@
-import { Alert, Platform, Linking, NativeModules } from 'react-native';
+import { Alert, Platform, NativeModules } from 'react-native';
 import remoteConfig from '@react-native-firebase/remote-config';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { version as currentVersion } from '../../package.json';
@@ -27,7 +27,9 @@ class UpdateChecker {
   private isDownloading = false;
 
   async init() {
-    if (this.initialized) return;
+    if (this.initialized){
+      return;
+    }
 
     try {
       await remoteConfig().setDefaults({
@@ -55,14 +57,20 @@ class UpdateChecker {
     for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
       const p1 = parts1[i] || 0;
       const p2 = parts2[i] || 0;
-      if (p1 > p2) return 1;
-      if (p1 < p2) return -1;
+      if (p1 > p2){
+        return 1;
+      }
+      if (p1 < p2){
+        return -1;
+      }
     }
     return 0;
   }
 
   async checkForUpdate(onProgress?: ProgressCallback): Promise<void> {
-    if (Platform.OS !== 'android') return;
+    if (Platform.OS !== 'android'){
+      return;
+    }
 
     try {
       await this.init();
@@ -101,7 +109,7 @@ class UpdateChecker {
       text: 'Descargar e instalar',
       onPress: () => {
         if (updateUrl) {
-          this.downloadAndInstall(updateUrl, latestVersion, onProgress);
+          this.downloadAndInstall(updateUrl, latestVersion, onProgress).catch(console.error);
         } else {
           Alert.alert('Error', 'URL de actualización no disponible');
         }
@@ -159,7 +167,7 @@ class UpdateChecker {
           { text: 'Cancelar', style: 'cancel' },
           {
             text: 'Abrir ajustes',
-            onPress: () => this.requestInstallPermission(),
+            onPress: () => { this.requestInstallPermission().catch(console.error); },
           },
         ]
       );
@@ -193,7 +201,7 @@ class UpdateChecker {
       })
         .fetch('GET', url)
         .progress((received, total) => {
-          const progress = Math.round((received / total) * 100);
+          const progress = Math.round((Number(received) / Number(total)) * 100);
           if (onProgress) {
             onProgress(progress);
           }

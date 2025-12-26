@@ -17,7 +17,7 @@ import { colors, spacing } from '../theme';
 
 const { width, height } = Dimensions.get('window');
 
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+const GoogleIcon = () => <Icon name="google" size={20} color={colors.textPrimary} />;
 
 export const LoginScreen: React.FC = () => {
   const [loading, setLoading] = React.useState(false);
@@ -54,7 +54,7 @@ export const LoginScreen: React.FC = () => {
     decorCircle1.value = withDelay(200, withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) }));
     decorCircle2.value = withDelay(400, withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) }));
     decorCircle3.value = withDelay(600, withTiming(1, { duration: 1000, easing: Easing.out(Easing.cubic) }));
-  }, []);
+  }, [logoScale, logoRotate, titleOpacity, titleTranslateY, subtitleOpacity, subtitleTranslateY, buttonOpacity, buttonScale, decorCircle1, decorCircle2, decorCircle3]);
 
   const logoAnimatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -172,7 +172,7 @@ export const LoginScreen: React.FC = () => {
               style={styles.button}
               contentStyle={styles.buttonContent}
               labelStyle={styles.buttonLabel}
-              icon={loading ? undefined : () => <Icon name="google" size={20} color={colors.textPrimary} />}
+              icon={loading ? undefined : GoogleIcon}
             >
               {loading ? 'Conectando...' : 'Iniciar sesión con Google'}
             </Button>

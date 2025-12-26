@@ -4,7 +4,6 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   StatusBar,
 } from 'react-native';
 import {
@@ -27,12 +26,10 @@ import Animated, {
   withSpring,
   withDelay,
   FadeIn,
-  FadeOut,
   SlideInRight,
   SlideOutLeft,
-  Layout,
+  LinearTransition,
   interpolate,
-  Easing,
 } from 'react-native-reanimated';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList, TipoAsistencia, Alumno } from '../types';
@@ -40,15 +37,11 @@ import { useAlumnos } from '../hooks/useAlumnos';
 import { colors, spacing, shadows } from '../theme';
 import { AuthService } from '../services/auth';
 
-const { width } = Dimensions.get('window');
-
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
 type Props = {
   navigation: HomeScreenNavigationProp;
 };
-
-const AnimatedSurface = Animated.createAnimatedComponent(Surface);
 
 // Card component for each student
 const AlumnoCard: React.FC<{
@@ -106,7 +99,7 @@ const AlumnoCard: React.FC<{
     <Animated.View
       entering={SlideInRight.delay(index * 50).springify()}
       exiting={SlideOutLeft.springify()}
-      layout={Layout.springify()}
+      layout={LinearTransition.springify()}
     >
       <Surface style={[styles.card, !alumno.activo && styles.cardInactive]}>
         <View style={styles.cardHeader}>
@@ -216,7 +209,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   useEffect(() => {
     headerOpacity.value = withTiming(1, { duration: 600 });
     statsScale.value = withDelay(300, withSpring(1, { damping: 12 }));
-  }, []);
+  }, [headerOpacity, statsScale]);
 
   const headerAnimStyle = useAnimatedStyle(() => ({
     opacity: headerOpacity.value,
@@ -244,7 +237,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   } = useAlumnos();
 
   const handleAgregarAlumno = () => {
-    const cantidad = cantidadInput.trim() === '' ? 0 : parseFloat(cantidadInput.trim());
+    const cantidad = cantidadInput.trim() === '' ? 0 : Number.parseFloat(cantidadInput.trim());
     if (agregarAlumno(alumnoInput, cantidad)) {
       setAlumnoInput('');
       setCantidadInput('');
@@ -252,8 +245,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleGuardarEdicion = () => {
-    if (!editandoAlumno) return;
-    const cantidad = nuevaCantidad.trim() === '' ? 0 : parseFloat(nuevaCantidad.trim());
+    if (!editandoAlumno) {
+      return;
+    }
+    const cantidad = nuevaCantidad.trim() === '' ? 0 : Number.parseFloat(nuevaCantidad.trim());
     if (editarAlumno(editandoAlumno, cantidad)) {
       setEditandoAlumno(null);
       setNuevaCantidad('');
@@ -272,8 +267,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
   const handleConfirmarDias = () => {
     if (dialogDias) {
-      const dias = parseInt(diasInput, 10);
-      if (!isNaN(dias) && dias > 0 && dias <= 30) {
+      const dias = Number.parseInt(diasInput, 10);
+      if (!Number.isNaN(dias) && dias > 0 && dias <= 30) {
         cambiarAsistencia(dialogDias, 'dias', dias);
       }
       setDialogDias(null);
@@ -323,7 +318,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             <View>
               <Text style={styles.headerTitle}>Sports Manager</Text>
               <Text style={styles.headerSubtitle}>
-                {alumnosActivos} alumno{alumnosActivos !== 1 ? 's' : ''} activo{alumnosActivos !== 1 ? 's' : ''}
+                {alumnosActivos} alumno{alumnosActivos === 1 ? '' : 's'} activo{alumnosActivos === 1 ? '' : 's'}
               </Text>
             </View>
             <View style={styles.headerActions}>

@@ -7,7 +7,7 @@ import PdfScreen from '../screens/PdfScreen';
 import LoginScreen from '../screens/LoginScreen';
 import { AuthService, User } from '../services/auth';
 import { updateChecker } from '../services/updateChecker';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -16,8 +16,8 @@ export const AppNavigator: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      setUser(user);
+    const unsubscribe = AuthService.onAuthStateChanged((authUser) => {
+      setUser(authUser);
       setLoading(false);
     });
     return unsubscribe;
@@ -32,7 +32,7 @@ export const AppNavigator: React.FC = () => {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.gradientStart }}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -55,3 +55,12 @@ export const AppNavigator: React.FC = () => {
     </Stack.Navigator>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.gradientStart,
+  },
+});

@@ -5,7 +5,6 @@ import {
   StatusBar,
   Platform,
   Dimensions,
-  PermissionsAndroid,
   Alert,
 } from 'react-native';
 import { Button, Text, ActivityIndicator, IconButton, SegmentedButtons } from 'react-native-paper';
@@ -53,7 +52,7 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
   useEffect(() => {
     cardOpacity.value = withTiming(1, { duration: 500 });
     cardScale.value = withDelay(200, withSpring(1, { damping: 12 }));
-  }, []);
+  }, [cardOpacity, cardScale]);
 
   const cardStyle = useAnimatedStyle(() => ({
     opacity: cardOpacity.value,
@@ -61,7 +60,9 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
   }));
 
   const calcularCantidadEfectiva = (alumno: Alumno): number => {
-    if (!alumno.activo) return 0;
+    if (!alumno.activo) {
+      return 0;
+    }
     switch (alumno.tipoAsistencia) {
       case 'completo':
         return alumno.cantidad;
@@ -321,7 +322,9 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handleShare = async () => {
-    if (!pdfPath) return;
+    if (!pdfPath) {
+      return;
+    }
 
     try {
       const uri = Platform.OS === 'android' ? `file://${pdfPath}` : pdfPath;
@@ -338,7 +341,9 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handleDownload = async () => {
-    if (!pdfPath) return;
+    if (!pdfPath) {
+      return;
+    }
 
     try {
       if (Platform.OS === 'android') {
@@ -373,7 +378,9 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
   };
 
   const handlePrint = async () => {
-    if (!pdfPath) return;
+    if (!pdfPath) {
+      return;
+    }
 
     try {
       const uri = Platform.OS === 'android' ? `file://${pdfPath}` : pdfPath;
@@ -498,7 +505,7 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
 
           <Text style={styles.title}>Generar PDF</Text>
           <Text style={styles.subtitle}>
-            Control de pagos para {alumnosActivos} alumno{alumnosActivos !== 1 ? 's' : ''} activo{alumnosActivos !== 1 ? 's' : ''}
+            Control de pagos para {alumnosActivos} alumno{alumnosActivos === 1 ? '' : 's'} activo{alumnosActivos === 1 ? '' : 's'}
           </Text>
 
           <View style={styles.infoRow}>
@@ -516,7 +523,7 @@ const PdfScreen: React.FC<Props> = ({ route, navigation }) => {
             <Text style={styles.orientationLabel}>Orientación</Text>
             <SegmentedButtons
               value={orientation}
-              onValueChange={(value) => setOrientation(value as 'horizontal' | 'vertical')}
+              onValueChange={setOrientation}
               buttons={[
                 { value: 'horizontal', label: 'Horizontal', icon: 'phone-rotate-landscape' },
                 { value: 'vertical', label: 'Vertical', icon: 'phone-rotate-portrait' },
