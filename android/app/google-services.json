@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "517536962770",
+    "project_id": "sportsmanagerapp-b9e8d",
+    "storage_bucket": "sportsmanagerapp-b9e8d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:517536962770:android:beef724bf4af937eeeb50b",
+        "android_client_info": {
+          "package_name": "com.sportsmanagerapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "517536962770-5vmvmnp5simtjpim4u8fq3fkj5mnfd8l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sportsmanagerapp",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "517536962770-mv8cm5lvtgmvm6bmdjp0vsmppsktlbfh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDUFOdYTMMuGMX2RX0fDdjyjgOfrWqhonI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "517536962770-mv8cm5lvtgmvm6bmdjp0vsmppsktlbfh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,6 +1,11 @@
 Para ejecutar el proyecto en android:
 
-- npx react-native run-android
+- npm start -- --reset-cache
+- npm run android
+
+Para matar el proceso si se queda pillado:
+
+- npx kill-port 8081
 
 Para compilar en .exe:
 
@@ -10,3 +15,20 @@ Para compilar en .exe:
 - npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android/app/src/main/assets/index.android.bundle --assets-dest android/app/src/main/res
 - cd android/
 - ./gradlew assembleDebug
+
+ Procedimiento para cambiar de versión:
+
+  1. Subir versión en package.json (ej: "version": "1.0.1")
+  2. Crear APK: cd android && ./gradlew assembleRelease
+  3. Subir a Drive y compartir con "Cualquier persona con el enlace"
+  4. Extraer el ID (la parte entre /d/ y /view):
+  1aBcDeFgHiJkLmNoPqRsTuVwXyZ
+  5. Convertir link:
+    - De: https://drive.google.com/file/d/XXXXX/view?usp=sharing
+    - A: https://drive.google.com/uc?export=download&id=XXXXX
+  6. Actualizar Firebase Remote Config:
+    - latest_version: 1.0.1
+    - update_url: el link directo
+    - force_update: true/false según quieras forzar
+    - update_message: mensaje opcional
+  7. Publicar cambios en Firebase Console
