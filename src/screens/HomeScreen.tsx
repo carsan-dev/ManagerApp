@@ -33,11 +33,11 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, TipoAsistencia, Alumno, Pagador } from '../types';
+import { RootStackParamList, TipoAsistencia, Alumno, Profesor } from '../types';
 import { useAlumnos } from '../hooks/useAlumnos';
 import { colors, spacing, shadows } from '../theme';
 import { AuthService } from '../services/auth';
-import { MAX_PAGADORES, PRESETS_PROPORCION } from '../services/storage';
+import { MAX_PROFESORES, PRESETS_PROPORCION } from '../services/storage';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -203,8 +203,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [editDialogVisible, setEditDialogVisible] = useState(false);
 
   // Config dialog state
-  const [tempPagadores, setTempPagadores] = useState<Pagador[]>([]);
-  const [tempNumPagadores, setTempNumPagadores] = useState('2');
+  const [tempProfesores, setTempProfesores] = useState<Profesor[]>([]);
+  const [tempNumProfesores, setTempNumProfesores] = useState('2');
   const [tempUsarManual, setTempUsarManual] = useState(false);
   const [tempProporciones, setTempProporciones] = useState<string[]>([]);
 
@@ -238,7 +238,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     proporcionales,
     config,
     actualizarConfig,
-    actualizarPagadores,
+    actualizarProfesores,
     calcularCantidadEfectiva,
   } = useAlumnos();
 
@@ -283,24 +283,24 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleAbrirConfig = () => {
-    setTempPagadores([...config.pagadores]);
-    setTempNumPagadores(config.pagadores.length.toString());
+    setTempProfesores([...config.profesores]);
+    setTempNumProfesores(config.profesores.length.toString());
     setTempUsarManual(config.usarProporcionManual);
-    setTempProporciones(config.pagadores.map(p => p.proporcion.toString()));
+    setTempProporciones(config.profesores.map(p => p.proporcion.toString()));
     setConfigVisible(true);
   };
 
-  const handleCambiarNumPagadores = (numStr: string) => {
+  const handleCambiarNumProfesores = (numStr: string) => {
     const num = Number.parseInt(numStr, 10);
-    setTempNumPagadores(numStr);
+    setTempNumProfesores(numStr);
 
-    // Ajustar el array de pagadores
-    const nuevosPagadores: Pagador[] = [];
+    // Ajustar el array de profesores
+    const nuevosProfesores: Profesor[] = [];
     for (let i = 0; i < num; i++) {
-      if (tempPagadores[i]) {
-        nuevosPagadores.push(tempPagadores[i]);
+      if (tempProfesores[i]) {
+        nuevosProfesores.push(tempProfesores[i]);
       } else {
-        nuevosPagadores.push({
+        nuevosProfesores.push({
           nombre: `Persona ${i + 1}`,
           proporcion: 0,
         });
@@ -311,29 +311,29 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     const presets = PRESETS_PROPORCION[num];
     if (presets && presets.length > 0) {
       presets[0].valores.forEach((valor, index) => {
-        if (nuevosPagadores[index]) {
-          nuevosPagadores[index].proporcion = valor;
+        if (nuevosProfesores[index]) {
+          nuevosProfesores[index].proporcion = valor;
         }
       });
     }
 
-    setTempPagadores(nuevosPagadores);
-    setTempProporciones(nuevosPagadores.map(p => p.proporcion.toString()));
+    setTempProfesores(nuevosProfesores);
+    setTempProporciones(nuevosProfesores.map(p => p.proporcion.toString()));
   };
 
   const handleAplicarPreset = (valores: number[]) => {
-    const nuevosPagadores = tempPagadores.map((p, index) => ({
+    const nuevosProfesores = tempProfesores.map((p, index) => ({
       ...p,
       proporcion: valores[index] ?? 0,
     }));
-    setTempPagadores(nuevosPagadores);
+    setTempProfesores(nuevosProfesores);
     setTempProporciones(valores.map(v => v.toString()));
   };
 
-  const handleCambiarNombrePagador = (index: number, nombre: string) => {
-    const nuevosPagadores = [...tempPagadores];
-    nuevosPagadores[index] = { ...nuevosPagadores[index], nombre };
-    setTempPagadores(nuevosPagadores);
+  const handleCambiarNombreProfesor = (index: number, nombre: string) => {
+    const nuevosProfesores = [...tempProfesores];
+    nuevosProfesores[index] = { ...nuevosProfesores[index], nombre };
+    setTempProfesores(nuevosProfesores);
   };
 
   const handleCambiarProporcionManual = (index: number, valor: string) => {
@@ -362,7 +362,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     }
 
     // Aplicar proporciones manuales si está activo
-    const pagadoresFinales = tempPagadores.map((p, idx) => ({
+    const profesoresFinales = tempProfesores.map((p, idx) => ({
       ...p,
       nombre: p.nombre.trim() || `Persona ${idx + 1}`,
       proporcion: tempUsarManual
@@ -370,7 +370,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         : p.proporcion,
     }));
 
-    actualizarPagadores(pagadoresFinales);
+    actualizarProfesores(profesoresFinales);
     actualizarConfig({ usarProporcionManual: tempUsarManual });
     setConfigVisible(false);
   };
@@ -390,8 +390,8 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const alumnosActivos = alumnos.filter(a => a.activo).length;
-  const numPagadores = Number.parseInt(tempNumPagadores, 10);
-  const presetsActuales = PRESETS_PROPORCION[numPagadores] || [];
+  const numProfesores = Number.parseInt(tempNumProfesores, 10);
+  const presetsActuales = PRESETS_PROPORCION[numProfesores] || [];
 
   // Calcular suma actual de proporciones para mostrar
   const sumaActual = tempProporciones.reduce((acc, val) => {
@@ -681,13 +681,13 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               {/* Número de personas */}
               <Text style={styles.configSectionTitle}>Número de personas</Text>
               <View style={styles.numPersonasContainer}>
-                {Array.from({ length: MAX_PAGADORES }, (_, i) => {
+                {Array.from({ length: MAX_PROFESORES }, (_, i) => {
                   const value = (i + 1).toString();
-                  const isSelected = tempNumPagadores === value;
+                  const isSelected = tempNumProfesores === value;
                   return (
                     <TouchableOpacity
                       key={i}
-                      onPress={() => handleCambiarNumPagadores(value)}
+                      onPress={() => handleCambiarNumProfesores(value)}
                       style={[
                         styles.numPersonaButton,
                         isSelected && styles.numPersonaButtonSelected,
@@ -708,12 +708,12 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
 
               {/* Nombres */}
               <Text style={styles.configSectionTitle}>Nombres</Text>
-              {tempPagadores.map((pagador, idx) => (
+              {tempProfesores.map((profesor, idx) => (
                 <TextInput
                   key={`nombre-persona-${idx + 1}`}
                   label={`Persona ${idx + 1}`}
-                  value={pagador.nombre}
-                  onChangeText={(text) => handleCambiarNombrePagador(idx, text)}
+                  value={profesor.nombre}
+                  onChangeText={(text) => handleCambiarNombreProfesor(idx, text)}
                   mode="outlined"
                   style={styles.dialogInput}
                   outlineColor={colors.cardBorder}
@@ -744,9 +744,9 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               {tempUsarManual ? (
                 /* Inputs manuales */
                 <View>
-                  {tempPagadores.map((pagador, idx) => (
+                  {tempProfesores.map((profesor, idx) => (
                     <View key={`manual-${idx + 1}`} style={styles.manualInputRow}>
-                      <Text style={styles.manualInputLabel}>{pagador.nombre}:</Text>
+                      <Text style={styles.manualInputLabel}>{profesor.nombre}:</Text>
                       <TextInput
                         value={tempProporciones[idx]}
                         onChangeText={(text) => handleCambiarProporcionManual(idx, text)}
@@ -783,7 +783,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
                 <View style={styles.presetsContainer}>
                   {presetsActuales.map((preset) => {
                     const esActivo = preset.valores.every(
-                      (v, i) => tempPagadores[i]?.proporcion === v
+                      (v, i) => tempProfesores[i]?.proporcion === v
                     );
                     return (
                       <Button
@@ -808,7 +808,7 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
               {/* Mostrar proporciones actuales */}
               {tempUsarManual ? null : (
                 <Text style={styles.proportionSummary}>
-                  {tempPagadores.map(p => `${p.proporcion}%`).join(' / ')}
+                  {tempProfesores.map(p => `${p.proporcion}%`).join(' / ')}
                 </Text>
               )}
             </ScrollView>

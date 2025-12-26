@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
-import { Alumno, TipoAsistencia, Pagador } from '../types';
+import { Alumno, TipoAsistencia, Profesor } from '../types';
 import { StorageService, AppConfig } from '../services/storage';
 
 const DIAS_MES = 30;
 
-export type ProporcionalPagador = {
+export type ProporcionalProfesor = {
   nombre: string;
   cantidad: number;
   proporcion: number;
@@ -15,7 +15,7 @@ export function useAlumnos() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [config, setConfig] = useState<AppConfig>({
-    pagadores: [
+    profesores: [
       { nombre: 'Profesor 1', proporcion: 60 },
       { nombre: 'Profesor 2', proporcion: 40 },
     ],
@@ -60,8 +60,8 @@ export function useAlumnos() {
     setConfig(prev => ({ ...prev, ...nuevoConfig }));
   }, []);
 
-  const actualizarPagadores = useCallback((pagadores: Pagador[]) => {
-    setConfig(prev => ({ ...prev, pagadores }));
+  const actualizarProfesores = useCallback((profesores: Profesor[]) => {
+    setConfig(prev => ({ ...prev, profesores }));
   }, []);
 
   const agregarAlumno = useCallback((nombre: string, cantidad: number) => {
@@ -178,11 +178,11 @@ export function useAlumnos() {
     }
   }, []);
 
-  // Calcular totales y proporciones para cada pagador
+  // Calcular totales y proporciones para cada profesor
   const { total, proporcionales } = useMemo(() => {
     const totalCalculado = alumnos.reduce((acc, al) => acc + calcularCantidadEfectiva(al), 0);
 
-    const porPagador: ProporcionalPagador[] = config.pagadores.map(p => ({
+    const porProfesor: ProporcionalProfesor[] = config.profesores.map(p => ({
       nombre: p.nombre,
       cantidad: totalCalculado * (p.proporcion / 100),
       proporcion: p.proporcion,
@@ -190,9 +190,9 @@ export function useAlumnos() {
 
     return {
       total: totalCalculado,
-      proporcionales: porPagador,
+      proporcionales: porProfesor,
     };
-  }, [alumnos, config.pagadores, calcularCantidadEfectiva]);
+  }, [alumnos, config.profesores, calcularCantidadEfectiva]);
 
   return {
     alumnos,
@@ -207,7 +207,7 @@ export function useAlumnos() {
     proporcionales,
     config,
     actualizarConfig,
-    actualizarPagadores,
+    actualizarProfesores,
     calcularCantidadEfectiva,
   };
 }

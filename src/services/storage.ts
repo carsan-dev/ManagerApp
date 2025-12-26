@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alumno, Pagador } from '../types';
+import { Alumno, Profesor } from '../types';
 
 const ALUMNOS_KEY = 'alumnos';
 const CONFIG_KEY = 'config';
 
-export const MAX_PAGADORES = 5;
+export const MAX_PROFESORES = 5;
 
 export const PRESETS_PROPORCION: Record<number, { label: string; valores: number[] }[]> = {
   1: [{ label: '100%', valores: [100] }],
@@ -42,12 +42,12 @@ type LegacyAppConfig = {
 };
 
 export type AppConfig = {
-  pagadores: Pagador[];
+  profesores: Profesor[];
   usarProporcionManual: boolean;
 };
 
 const DEFAULT_CONFIG: AppConfig = {
-  pagadores: [
+  profesores: [
     { nombre: 'Profesor 1', proporcion: 60 },
     { nombre: 'Profesor 2', proporcion: 40 },
   ],
@@ -57,9 +57,9 @@ const DEFAULT_CONFIG: AppConfig = {
 // Migrar datos del formato antiguo al nuevo
 function migrateConfig(data: LegacyAppConfig & Partial<AppConfig>): AppConfig {
   // Si ya tiene el nuevo formato, devolverlo
-  if (data.pagadores && Array.isArray(data.pagadores)) {
+  if (data.profesores && Array.isArray(data.profesores)) {
     return {
-      pagadores: data.pagadores,
+      profesores: data.profesores,
       usarProporcionManual: data.usarProporcionManual ?? false,
     };
   }
@@ -67,7 +67,7 @@ function migrateConfig(data: LegacyAppConfig & Partial<AppConfig>): AppConfig {
   // Migrar desde formato antiguo
   const proporcion1 = data.proporcionProfesor1 ?? 60;
   return {
-    pagadores: [
+    profesores: [
       { nombre: data.nombreProfesor1 ?? 'Profesor 1', proporcion: proporcion1 },
       { nombre: data.nombreProfesor2 ?? 'Profesor 2', proporcion: 100 - proporcion1 },
     ],
@@ -112,7 +112,7 @@ export const StorageService = {
       const migrated = migrateConfig(parsed);
 
       // Si se migró, guardar el nuevo formato
-      if (!parsed.pagadores) {
+      if (!parsed.profesores) {
         await this.saveConfig(migrated);
       }
 

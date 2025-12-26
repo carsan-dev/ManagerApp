@@ -1,6 +1,6 @@
 export type TipoAsistencia = 'completo' | 'medio' | 'dias';
 
-export type Pagador = {
+export type Profesor = {
   nombre: string;
   proporcion: number; // Porcentaje (0-100)
 };
