@@ -19,7 +19,7 @@ Para compilar en .exe:
  Procedimiento para cambiar de versión:
 
   1. Subir versión en package.json (ej: "version": "1.0.1")
-  2. Crear APK: cd android && ./gradlew assembleRelease
+  2. Crear APK: cd android && ./gradlew assembleRelease (  El APK se genera en android/app/build/outputs/apk/release/app-release.apk)
   3. Subir a Drive y compartir con "Cualquier persona con el enlace"
   4. Extraer el ID (la parte entre /d/ y /view):
   1aBcDeFgHiJkLmNoPqRsTuVwXyZ
