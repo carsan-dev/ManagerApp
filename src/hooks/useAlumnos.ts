@@ -1,17 +1,25 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
-import { Alumno, TipoAsistencia } from '../types';
+import { Alumno, TipoAsistencia, Pagador } from '../types';
 import { StorageService, AppConfig } from '../services/storage';
 
 const DIAS_MES = 30;
+
+export type ProporcionalPagador = {
+  nombre: string;
+  cantidad: number;
+  proporcion: number;
+};
 
 export function useAlumnos() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [config, setConfig] = useState<AppConfig>({
-    nombreProfesor1: 'Profesor 1',
-    nombreProfesor2: 'Profesor 2',
-    proporcionProfesor1: 60,
+    pagadores: [
+      { nombre: 'Profesor 1', proporcion: 60 },
+      { nombre: 'Profesor 2', proporcion: 40 },
+    ],
+    usarProporcionManual: false,
   });
 
   useEffect(() => {
@@ -52,6 +60,10 @@ export function useAlumnos() {
     setConfig(prev => ({ ...prev, ...nuevoConfig }));
   }, []);
 
+  const actualizarPagadores = useCallback((pagadores: Pagador[]) => {
+    setConfig(prev => ({ ...prev, pagadores }));
+  }, []);
+
   const agregarAlumno = useCallback((nombre: string, cantidad: number) => {
     const nombreTrimmed = nombre.trim();
 
@@ -77,7 +89,7 @@ export function useAlumnos() {
   }, [alumnos]);
 
   const editarAlumno = useCallback((nombre: string, nuevaCantidad: number) => {
-    if (isNaN(nuevaCantidad) || nuevaCantidad < 0) {
+    if (Number.isNaN(nuevaCantidad) || nuevaCantidad < 0) {
       Alert.alert('Error', 'La cantidad debe ser un número mayor o igual a 0.');
       return false;
     }
@@ -149,7 +161,9 @@ export function useAlumnos() {
 
   // Calcular la cantidad efectiva de un alumno según su tipo de asistencia
   const calcularCantidadEfectiva = useCallback((alumno: Alumno): number => {
-    if (!alumno.activo) return 0;
+    if (!alumno.activo) {
+      return 0;
+    }
 
     switch (alumno.tipoAsistencia) {
       case 'completo':
@@ -164,18 +178,21 @@ export function useAlumnos() {
     }
   }, []);
 
-  // Solo contar alumnos activos en los cálculos
-  const { total, proporcionalProfesor1, proporcionalProfesor2 } = useMemo(() => {
+  // Calcular totales y proporciones para cada pagador
+  const { total, proporcionales } = useMemo(() => {
     const totalCalculado = alumnos.reduce((acc, al) => acc + calcularCantidadEfectiva(al), 0);
-    const prop1 = config.proporcionProfesor1 / 100;
-    const prop2 = (100 - config.proporcionProfesor1) / 100;
+
+    const porPagador: ProporcionalPagador[] = config.pagadores.map(p => ({
+      nombre: p.nombre,
+      cantidad: totalCalculado * (p.proporcion / 100),
+      proporcion: p.proporcion,
+    }));
 
     return {
       total: totalCalculado,
-      proporcionalProfesor1: totalCalculado * prop1,
-      proporcionalProfesor2: totalCalculado * prop2,
+      proporcionales: porPagador,
     };
-  }, [alumnos, config.proporcionProfesor1, calcularCantidadEfectiva]);
+  }, [alumnos, config.pagadores, calcularCantidadEfectiva]);
 
   return {
     alumnos,
@@ -187,10 +204,10 @@ export function useAlumnos() {
     eliminarAlumno,
     eliminarTodos,
     total,
-    proporcionalProfesor1,
-    proporcionalProfesor2,
+    proporcionales,
     config,
     actualizarConfig,
+    actualizarPagadores,
     calcularCantidadEfectiva,
   };
 }

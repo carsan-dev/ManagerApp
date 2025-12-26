@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  Alert,
 } from 'react-native';
 import {
   TextInput,
@@ -32,10 +33,11 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList, TipoAsistencia, Alumno } from '../types';
+import { RootStackParamList, TipoAsistencia, Alumno, Pagador } from '../types';
 import { useAlumnos } from '../hooks/useAlumnos';
 import { colors, spacing, shadows } from '../theme';
 import { AuthService } from '../services/auth';
+import { MAX_PAGADORES, PRESETS_PROPORCION } from '../services/storage';
 
 type HomeScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Home'>;
 
@@ -198,9 +200,13 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   const [dialogDias, setDialogDias] = useState<string | null>(null);
   const [diasInput, setDiasInput] = useState('');
   const [configVisible, setConfigVisible] = useState(false);
-  const [tempNombre1, setTempNombre1] = useState('');
-  const [tempNombre2, setTempNombre2] = useState('');
   const [editDialogVisible, setEditDialogVisible] = useState(false);
+
+  // Config dialog state
+  const [tempPagadores, setTempPagadores] = useState<Pagador[]>([]);
+  const [tempNumPagadores, setTempNumPagadores] = useState('2');
+  const [tempUsarManual, setTempUsarManual] = useState(false);
+  const [tempProporciones, setTempProporciones] = useState<string[]>([]);
 
   // Header animation
   const headerOpacity = useSharedValue(0);
@@ -229,10 +235,10 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
     eliminarAlumno,
     eliminarTodos,
     total,
-    proporcionalProfesor1,
-    proporcionalProfesor2,
+    proporcionales,
     config,
     actualizarConfig,
+    actualizarPagadores,
     calcularCantidadEfectiva,
   } = useAlumnos();
 
@@ -277,16 +283,95 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const handleAbrirConfig = () => {
-    setTempNombre1(config.nombreProfesor1);
-    setTempNombre2(config.nombreProfesor2);
+    setTempPagadores([...config.pagadores]);
+    setTempNumPagadores(config.pagadores.length.toString());
+    setTempUsarManual(config.usarProporcionManual);
+    setTempProporciones(config.pagadores.map(p => p.proporcion.toString()));
     setConfigVisible(true);
   };
 
+  const handleCambiarNumPagadores = (numStr: string) => {
+    const num = Number.parseInt(numStr, 10);
+    setTempNumPagadores(numStr);
+
+    // Ajustar el array de pagadores
+    const nuevosPagadores: Pagador[] = [];
+    for (let i = 0; i < num; i++) {
+      if (tempPagadores[i]) {
+        nuevosPagadores.push(tempPagadores[i]);
+      } else {
+        nuevosPagadores.push({
+          nombre: `Persona ${i + 1}`,
+          proporcion: 0,
+        });
+      }
+    }
+
+    // Aplicar primer preset por defecto
+    const presets = PRESETS_PROPORCION[num];
+    if (presets && presets.length > 0) {
+      presets[0].valores.forEach((valor, index) => {
+        if (nuevosPagadores[index]) {
+          nuevosPagadores[index].proporcion = valor;
+        }
+      });
+    }
+
+    setTempPagadores(nuevosPagadores);
+    setTempProporciones(nuevosPagadores.map(p => p.proporcion.toString()));
+  };
+
+  const handleAplicarPreset = (valores: number[]) => {
+    const nuevosPagadores = tempPagadores.map((p, index) => ({
+      ...p,
+      proporcion: valores[index] ?? 0,
+    }));
+    setTempPagadores(nuevosPagadores);
+    setTempProporciones(valores.map(v => v.toString()));
+  };
+
+  const handleCambiarNombrePagador = (index: number, nombre: string) => {
+    const nuevosPagadores = [...tempPagadores];
+    nuevosPagadores[index] = { ...nuevosPagadores[index], nombre };
+    setTempPagadores(nuevosPagadores);
+  };
+
+  const handleCambiarProporcionManual = (index: number, valor: string) => {
+    const nuevasProporciones = [...tempProporciones];
+    nuevasProporciones[index] = valor;
+    setTempProporciones(nuevasProporciones);
+  };
+
+  const validarProporciones = (): boolean => {
+    if (!tempUsarManual) {
+      return true;
+    }
+
+    const suma = tempProporciones.reduce((acc, val) => {
+      const num = Number.parseFloat(val);
+      return acc + (Number.isNaN(num) ? 0 : num);
+    }, 0);
+
+    return Math.abs(suma - 100) < 0.01;
+  };
+
   const handleGuardarConfig = () => {
-    actualizarConfig({
-      nombreProfesor1: tempNombre1.trim() || 'Profesor 1',
-      nombreProfesor2: tempNombre2.trim() || 'Profesor 2',
-    });
+    if (tempUsarManual && !validarProporciones()) {
+      Alert.alert('Error', 'Las proporciones deben sumar exactamente 100%');
+      return;
+    }
+
+    // Aplicar proporciones manuales si está activo
+    const pagadoresFinales = tempPagadores.map((p, idx) => ({
+      ...p,
+      nombre: p.nombre.trim() || `Persona ${idx + 1}`,
+      proporcion: tempUsarManual
+        ? (Number.parseFloat(tempProporciones[idx]) || 0)
+        : p.proporcion,
+    }));
+
+    actualizarPagadores(pagadoresFinales);
+    actualizarConfig({ usarProporcionManual: tempUsarManual });
     setConfigVisible(false);
   };
 
@@ -305,6 +390,14 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
   };
 
   const alumnosActivos = alumnos.filter(a => a.activo).length;
+  const numPagadores = Number.parseInt(tempNumPagadores, 10);
+  const presetsActuales = PRESETS_PROPORCION[numPagadores] || [];
+
+  // Calcular suma actual de proporciones para mostrar
+  const sumaActual = tempProporciones.reduce((acc, val) => {
+    const num = Number.parseFloat(val);
+    return acc + (Number.isNaN(num) ? 0 : num);
+  }, 0);
 
   return (
     <View style={styles.container}>
@@ -337,28 +430,37 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* Stats Cards */}
+          {/* Stats Cards - Dynamic */}
           <Animated.View style={[styles.statsContainer, statsAnimStyle]}>
-            <Surface style={styles.statCard}>
-              <Text style={styles.statLabel}>Total</Text>
-              <Text style={styles.statValue}>{total.toFixed(2)}€</Text>
-            </Surface>
-            <Surface style={[styles.statCard, styles.statCardPrimary]}>
-              <Text style={styles.statLabelPrimary}>{config.nombreProfesor1}</Text>
-              <Text style={styles.statValuePrimary}>
-                {proporcionalProfesor1.toFixed(2)}€
-              </Text>
-              <Text style={styles.statPercent}>{config.proporcionProfesor1}%</Text>
-            </Surface>
-            <Surface style={styles.statCard}>
-              <Text style={styles.statLabel}>{config.nombreProfesor2}</Text>
-              <Text style={styles.statValue}>
-                {proporcionalProfesor2.toFixed(2)}€
-              </Text>
-              <Text style={styles.statPercentSecondary}>
-                {100 - config.proporcionProfesor1}%
-              </Text>
-            </Surface>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={[
+                styles.statsScrollContent,
+                proporcionales.length <= 2 && styles.statsScrollContentCentered,
+              ]}
+            >
+              <Surface style={styles.statCard}>
+                <Text style={styles.statLabel}>Total</Text>
+                <Text style={styles.statValue}>{total.toFixed(2)}€</Text>
+              </Surface>
+              {proporcionales.map((p, idx) => (
+                <Surface
+                  key={`stat-${p.nombre}-${p.proporcion}`}
+                  style={[styles.statCard, idx === 0 && styles.statCardPrimary]}
+                >
+                  <Text style={idx === 0 ? styles.statLabelPrimary : styles.statLabel}>
+                    {p.nombre}
+                  </Text>
+                  <Text style={idx === 0 ? styles.statValuePrimary : styles.statValue}>
+                    {p.cantidad.toFixed(2)}€
+                  </Text>
+                  <Text style={idx === 0 ? styles.statPercent : styles.statPercentSecondary}>
+                    {p.proporcion}%
+                  </Text>
+                </Surface>
+              ))}
+            </ScrollView>
           </Animated.View>
         </Animated.View>
       </LinearGradient>
@@ -571,67 +673,146 @@ const HomeScreen: React.FC<Props> = ({ navigation }) => {
         <Dialog
           visible={configVisible}
           onDismiss={() => setConfigVisible(false)}
-          style={styles.dialog}
+          style={styles.configDialog}
         >
           <Dialog.Title style={styles.dialogTitle}>Configuración</Dialog.Title>
-          <Dialog.Content>
-            <TextInput
-              label="Nombre profesor 1"
-              value={tempNombre1}
-              onChangeText={setTempNombre1}
-              mode="outlined"
-              style={styles.dialogInput}
-              outlineColor={colors.cardBorder}
-              activeOutlineColor={colors.primary}
-              textColor={colors.textPrimary}
-              theme={{
-                colors: {
-                  onSurfaceVariant: colors.textSecondary,
-                  surface: colors.surface,
-                },
-              }}
-            />
-            <TextInput
-              label="Nombre profesor 2"
-              value={tempNombre2}
-              onChangeText={setTempNombre2}
-              mode="outlined"
-              style={styles.dialogInput}
-              outlineColor={colors.cardBorder}
-              activeOutlineColor={colors.primary}
-              textColor={colors.textPrimary}
-              theme={{
-                colors: {
-                  onSurfaceVariant: colors.textSecondary,
-                  surface: colors.surface,
-                },
-              }}
-            />
-            <Text style={styles.proportionLabel}>
-              Proporción: {config.proporcionProfesor1}% /{' '}
-              {100 - config.proporcionProfesor1}%
-            </Text>
-            <View style={styles.proportionButtons}>
-              {[50, 60, 70, 80].map((valor) => (
-                <Button
-                  key={valor}
-                  mode={
-                    config.proporcionProfesor1 === valor ? 'contained' : 'outlined'
-                  }
-                  onPress={() => actualizarConfig({ proporcionProfesor1: valor })}
-                  style={styles.proportionButton}
-                  compact
-                  labelStyle={
-                    config.proporcionProfesor1 === valor
-                      ? styles.proportionButtonLabelActive
-                      : styles.proportionButtonLabel
-                  }
-                >
-                  {valor}/{100 - valor}
-                </Button>
+          <Dialog.ScrollArea style={styles.configScrollArea}>
+            <ScrollView>
+              {/* Número de personas */}
+              <Text style={styles.configSectionTitle}>Número de personas</Text>
+              <View style={styles.numPersonasContainer}>
+                {Array.from({ length: MAX_PAGADORES }, (_, i) => {
+                  const value = (i + 1).toString();
+                  const isSelected = tempNumPagadores === value;
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => handleCambiarNumPagadores(value)}
+                      style={[
+                        styles.numPersonaButton,
+                        isSelected && styles.numPersonaButtonSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.numPersonaButtonText,
+                          isSelected && styles.numPersonaButtonTextSelected,
+                        ]}
+                      >
+                        {value}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Nombres */}
+              <Text style={styles.configSectionTitle}>Nombres</Text>
+              {tempPagadores.map((pagador, idx) => (
+                <TextInput
+                  key={`nombre-persona-${idx + 1}`}
+                  label={`Persona ${idx + 1}`}
+                  value={pagador.nombre}
+                  onChangeText={(text) => handleCambiarNombrePagador(idx, text)}
+                  mode="outlined"
+                  style={styles.dialogInput}
+                  outlineColor={colors.cardBorder}
+                  activeOutlineColor={colors.primary}
+                  textColor={colors.textPrimary}
+                  theme={{
+                    colors: {
+                      onSurfaceVariant: colors.textSecondary,
+                      surface: colors.surface,
+                    },
+                  }}
+                />
               ))}
-            </View>
-          </Dialog.Content>
+
+              {/* Proporciones */}
+              <Text style={styles.configSectionTitle}>Proporciones</Text>
+
+              {/* Toggle Manual */}
+              <View style={styles.manualToggleContainer}>
+                <Text style={styles.manualToggleLabel}>Porcentaje manual</Text>
+                <Switch
+                  value={tempUsarManual}
+                  onValueChange={setTempUsarManual}
+                  color={colors.primary}
+                />
+              </View>
+
+              {tempUsarManual ? (
+                /* Inputs manuales */
+                <View>
+                  {tempPagadores.map((pagador, idx) => (
+                    <View key={`manual-${idx + 1}`} style={styles.manualInputRow}>
+                      <Text style={styles.manualInputLabel}>{pagador.nombre}:</Text>
+                      <TextInput
+                        value={tempProporciones[idx]}
+                        onChangeText={(text) => handleCambiarProporcionManual(idx, text)}
+                        mode="outlined"
+                        keyboardType="numeric"
+                        style={styles.manualInput}
+                        outlineColor={colors.cardBorder}
+                        activeOutlineColor={colors.primary}
+                        textColor={colors.textPrimary}
+                        right={<TextInput.Affix text="%" />}
+                        theme={{
+                          colors: {
+                            onSurfaceVariant: colors.textSecondary,
+                            surface: colors.surface,
+                          },
+                        }}
+                      />
+                    </View>
+                  ))}
+                  <Text
+                    style={[
+                      styles.sumaTotalText,
+                      Math.abs(sumaActual - 100) < 0.01
+                        ? styles.sumaValida
+                        : styles.sumaInvalida,
+                    ]}
+                  >
+                    Total: {sumaActual.toFixed(1)}%
+                    {Math.abs(sumaActual - 100) >= 0.01 && ' (debe ser 100%)'}
+                  </Text>
+                </View>
+              ) : (
+                /* Presets */
+                <View style={styles.presetsContainer}>
+                  {presetsActuales.map((preset) => {
+                    const esActivo = preset.valores.every(
+                      (v, i) => tempPagadores[i]?.proporcion === v
+                    );
+                    return (
+                      <Button
+                        key={preset.label}
+                        mode={esActivo ? 'contained' : 'outlined'}
+                        onPress={() => handleAplicarPreset(preset.valores)}
+                        style={styles.presetButton}
+                        compact
+                        labelStyle={
+                          esActivo
+                            ? styles.presetButtonLabelActive
+                            : styles.presetButtonLabel
+                        }
+                      >
+                        {preset.label}
+                      </Button>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Mostrar proporciones actuales */}
+              {tempUsarManual ? null : (
+                <Text style={styles.proportionSummary}>
+                  {tempPagadores.map(p => `${p.proporcion}%`).join(' / ')}
+                </Text>
+              )}
+            </ScrollView>
+          </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button
               onPress={() => setConfigVisible(false)}
@@ -682,11 +863,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   statsContainer: {
-    flexDirection: 'row',
+    marginHorizontal: -spacing.lg,
+  },
+  statsScrollContent: {
+    paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
+  statsScrollContentCentered: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   statCard: {
-    flex: 1,
+    minWidth: 100,
     backgroundColor: colors.surface,
     borderRadius: 16,
     padding: spacing.md,
@@ -905,6 +1093,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: 20,
   },
+  configDialog: {
+    backgroundColor: colors.surface,
+    borderRadius: 20,
+    maxHeight: '80%',
+  },
+  configScrollArea: {
+    paddingHorizontal: spacing.lg,
+  },
   dialogTitle: {
     color: colors.textPrimary,
     fontSize: 20,
@@ -916,32 +1112,109 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   dialogInput: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     backgroundColor: colors.surfaceLight,
   },
-  proportionLabel: {
+  configSectionTitle: {
     color: colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: spacing.md,
     marginBottom: spacing.sm,
-    marginTop: spacing.sm,
   },
-  proportionButtons: {
+  numPersonasContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  numPersonaButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  numPersonaButtonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  numPersonaButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  numPersonaButtonTextSelected: {
+    color: colors.textPrimary,
+  },
+  manualToggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  manualToggleLabel: {
+    color: colors.textPrimary,
+    fontSize: 14,
+  },
+  presetsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
     justifyContent: 'center',
+    marginBottom: spacing.md,
   },
-  proportionButton: {
+  presetButton: {
     borderColor: colors.primary,
     borderRadius: 8,
   },
-  proportionButtonLabel: {
+  presetButtonLabel: {
     color: colors.primary,
     fontSize: 12,
   },
-  proportionButtonLabelActive: {
+  presetButtonLabelActive: {
     color: colors.textPrimary,
     fontSize: 12,
+  },
+  proportionSummary: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  manualInputLabel: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    flex: 1,
+  },
+  manualInput: {
+    width: 100,
+    backgroundColor: colors.surfaceLight,
+  },
+  sumaTotalText: {
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  sumaValida: {
+    color: colors.success,
+  },
+  sumaInvalida: {
+    color: colors.error,
   },
 });
 
