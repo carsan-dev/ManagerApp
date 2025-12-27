@@ -24,15 +24,11 @@ Para compilar en .exe:
     versionName "1.0.1"
   )
   3. Crear APK: cd android && ./gradlew clean && ./gradlew assembleRelease (  El APK se genera en android/app/build/outputs/apk/release/app-release.apk)
-  4. Subir a Drive y compartir con "Cualquier persona con el enlace"
-  5. Extraer el ID (la parte entre /d/ y /view):
-  1aBcDeFgHiJkLmNoPqRsTuVwXyZ
-  6. Convertir link:
-    - De: https://drive.google.com/file/d/XXXXX/view?usp=sharing
-    - A: https://drive.google.com/uc?export=download&id=XXXXX
-  7. Actualizar Firebase Remote Config:
+  4. Subir release a GitHub con etiqueta de versión y el fichero como asset
+  5. Copiar el link de descarga (https://github.com/carsan-dev/ManagerApp/releases/download/v3.0.1/SportsManager_3.0.1.apk)
+  6. Actualizar Firebase Remote Config:
     - latest_version: 1.0.1
     - update_url: el link directo
     - force_update: true/false según quieras forzar
     - update_message: mensaje opcional
-  8. Publicar cambios en Firebase Console
+  7. Publicar cambios en Firebase Console
