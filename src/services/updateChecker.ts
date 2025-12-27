@@ -1,4 +1,4 @@
-import { Alert, Platform, NativeModules } from 'react-native';
+import { Alert, Platform, NativeModules, AppState, AppStateStatus } from 'react-native';
 import remoteConfig from '@react-native-firebase/remote-config';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { version as currentVersion } from '../../package.json';
@@ -22,9 +22,21 @@ const DEFAULT_CONFIG: UpdateConfig = {
 // Callback para mostrar progreso de descarga
 type ProgressCallback = (progress: number) => void;
 
+type DownloadState = {
+  isDownloading: boolean;
+  progress: number;
+  version: string;
+};
+
+type DownloadStateCallback = (state: DownloadState) => void;
+
 class UpdateChecker {
   private initialized = false;
   private isDownloading = false;
+  private pendingUpdate: { url: string; version: string; onProgress?: ProgressCallback } | null = null;
+  private appStateSubscription: any = null;
+  private downloadStateListeners: DownloadStateCallback[] = [];
+  private currentDownloadVersion = '';
 
   async init() {
     if (this.initialized){
@@ -147,6 +159,63 @@ class UpdateChecker {
     }
   }
 
+  private setupAppStateListener(): void {
+    if (this.appStateSubscription) {
+      return;
+    }
+
+    this.appStateSubscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'active' && this.pendingUpdate) {
+        this.handleAppResume();
+      }
+    });
+  }
+
+  private removeAppStateListener(): void {
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
+  }
+
+  private async handleAppResume(): Promise<void> {
+    if (!this.pendingUpdate) {
+      return;
+    }
+
+    const canInstall = await this.checkInstallPermission();
+    if (canInstall) {
+      const { url, version, onProgress } = this.pendingUpdate;
+      this.pendingUpdate = null;
+      this.removeAppStateListener();
+
+      // Pequeño delay para que la UI esté lista
+      setTimeout(() => {
+        this.downloadAndInstall(url, version, onProgress).catch(console.error);
+      }, 500);
+    } else {
+      // Permiso sigue sin activar
+      Alert.alert(
+        'Permiso no activado',
+        'No has activado el permiso de instalación. ¿Quieres intentarlo de nuevo?',
+        [
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => {
+              this.pendingUpdate = null;
+              this.removeAppStateListener();
+            },
+          },
+          {
+            text: 'Abrir ajustes',
+            onPress: () => { this.requestInstallPermission().catch(console.error); },
+          },
+        ]
+      );
+    }
+  }
+
   private async downloadAndInstall(
     url: string,
     version: string,
@@ -160,11 +229,22 @@ class UpdateChecker {
     // Verificar permiso de instalación
     const canInstall = await this.checkInstallPermission();
     if (!canInstall) {
+      // Guardar datos para reintentar cuando vuelva
+      this.pendingUpdate = { url, version, onProgress };
+      this.setupAppStateListener();
+
       Alert.alert(
         'Permiso requerido',
-        'Para instalar actualizaciones, necesitas habilitar la instalación de apps de fuentes desconocidas para Sports Manager.',
+        'Para instalar actualizaciones, necesitas habilitar la instalación de apps de fuentes desconocidas para Sports Manager.\n\nCuando lo actives y vuelvas, la descarga comenzará automáticamente.',
         [
-          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Cancelar',
+            style: 'cancel',
+            onPress: () => {
+              this.pendingUpdate = null;
+              this.removeAppStateListener();
+            },
+          },
           {
             text: 'Abrir ajustes',
             onPress: () => { this.requestInstallPermission().catch(console.error); },
@@ -175,26 +255,20 @@ class UpdateChecker {
     }
 
     this.isDownloading = true;
+    this.currentDownloadVersion = version;
+    this.emitDownloadState(0);
+
     const fileName = `SportsManager_${version}.apk`;
     const downloadPath = `${ReactNativeBlobUtil.fs.dirs.DownloadDir}/${fileName}`;
 
     try {
-      // Mostrar alerta de inicio de descarga
-      Alert.alert(
-        'Descargando actualización',
-        'La descarga ha comenzado. Recibirás una notificación cuando termine.',
-        [{ text: 'OK' }]
-      );
-
       // Descargar el APK
       const res = await ReactNativeBlobUtil.config({
         fileCache: true,
         path: downloadPath,
         addAndroidDownloads: {
-          useDownloadManager: true,
-          notification: true,
-          title: `Actualizando Sports Manager a v${version}`,
-          description: 'Descargando actualización...',
+          useDownloadManager: false,
+          notification: false,
           mime: 'application/vnd.android.package-archive',
           mediaScannable: true,
         },
@@ -202,12 +276,14 @@ class UpdateChecker {
         .fetch('GET', url)
         .progress((received, total) => {
           const progress = Math.round((Number(received) / Number(total)) * 100);
+          this.emitDownloadState(progress);
           if (onProgress) {
             onProgress(progress);
           }
         });
 
       this.isDownloading = false;
+      this.emitDownloadState(100);
 
       // Instalar el APK
       if (res && res.path()) {
@@ -215,6 +291,7 @@ class UpdateChecker {
       }
     } catch (error: any) {
       this.isDownloading = false;
+      this.emitDownloadState(0);
       console.error('Error downloading update:', error);
       Alert.alert(
         'Error de descarga',
@@ -242,6 +319,23 @@ class UpdateChecker {
 
   getCurrentVersion(): string {
     return currentVersion;
+  }
+
+  // Suscribirse a cambios de estado de descarga
+  onDownloadStateChange(callback: DownloadStateCallback): () => void {
+    this.downloadStateListeners.push(callback);
+    return () => {
+      this.downloadStateListeners = this.downloadStateListeners.filter(cb => cb !== callback);
+    };
+  }
+
+  private emitDownloadState(progress: number): void {
+    const state: DownloadState = {
+      isDownloading: this.isDownloading,
+      progress,
+      version: this.currentDownloadVersion,
+    };
+    this.downloadStateListeners.forEach(cb => cb(state));
   }
 }
 
