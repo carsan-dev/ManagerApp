@@ -269,24 +269,26 @@ class UpdateChecker {
     this.emitDownloadState(0);
 
     const fileName = `SportsManager_${version}.apk`;
-    const downloadPath = `${ReactNativeBlobUtil.fs.dirs.DownloadDir}/${fileName}`;
+    // Usar directorio de caché para evitar problemas de permisos
+    const downloadPath = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/${fileName}`;
 
     try {
+      // Limpiar APKs anteriores del caché
+      await this.cleanOldApks();
+
+      // Eliminar archivo anterior si existe
+      const exists = await ReactNativeBlobUtil.fs.exists(downloadPath);
+      if (exists) {
+        await ReactNativeBlobUtil.fs.unlink(downloadPath);
+      }
+
       // Descargar el APK
       const res = await ReactNativeBlobUtil.config({
         fileCache: true,
         path: downloadPath,
-        addAndroidDownloads: {
-          useDownloadManager: false,
-          notification: false,
-          mime: 'application/vnd.android.package-archive',
-          title: `SportsManager ${version}`,
-          description: 'Descargando actualización...',
-          mediaScannable: false,
-        },
       })
         .fetch('GET', url)
-        .progress((received, total) => {
+        .progress({ interval: 100 }, (received, total) => {
           const progress = Math.round((Number(received) / Number(total)) * 100);
           this.emitDownloadState(progress);
           if (onProgress) {
@@ -297,17 +299,28 @@ class UpdateChecker {
       this.isDownloading = false;
       this.emitDownloadState(100);
 
-      // Instalar el APK
-      if (res && res.path()) {
-        await this.installApk(res.path());
+      const filePath = res.path();
+
+      // Verificar que el archivo existe y tiene tamaño
+      const fileExists = await ReactNativeBlobUtil.fs.exists(filePath);
+      if (!fileExists) {
+        throw new Error('El archivo descargado no existe');
       }
+
+      const stat = await ReactNativeBlobUtil.fs.stat(filePath);
+      if (Number(stat.size) < 1000) {
+        throw new Error('El archivo descargado es demasiado pequeño, posiblemente corrupto');
+      }
+
+      // Instalar el APK
+      await this.installApk(filePath);
     } catch (error: any) {
       this.isDownloading = false;
       this.emitDownloadState(0);
       console.error('Error downloading update:', error);
       Alert.alert(
         'Error de descarga',
-        'No se pudo descargar la actualización. Verifica tu conexión e inténtalo de nuevo.',
+        `No se pudo descargar la actualización: ${error.message || 'Error desconocido'}`,
         [{ text: 'OK' }]
       );
     }
@@ -319,18 +332,50 @@ class UpdateChecker {
         filePath,
         'application/vnd.android.package-archive'
       );
-    } catch (error) {
-      console.error('Error installing APK:', error);
-      Alert.alert(
-        'Instalación',
-        'El APK se ha descargado. Ábrelo desde tus descargas para instalarlo.',
-        [{ text: 'OK' }]
-      );
+    } catch (error: any) {
+      // Intentar método alternativo: addCompleteDownload + abrir desde descargas
+      try {
+        const fileName = filePath.split('/').pop() || 'update.apk';
+        await ReactNativeBlobUtil.android.addCompleteDownload({
+          title: fileName,
+          description: 'SportsManager Update',
+          mime: 'application/vnd.android.package-archive',
+          path: filePath,
+          showNotification: true,
+        });
+        Alert.alert(
+          'Descarga completada',
+          'Pulsa en la notificación de descarga para instalar la actualización.',
+          [{ text: 'OK' }]
+        );
+      } catch (fallbackError: any) {
+        Alert.alert(
+          'Error de instalación',
+          'No se pudo abrir el instalador. Busca el archivo en la app de Archivos.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   }
 
   getCurrentVersion(): string {
     return currentVersion;
+  }
+
+  private async cleanOldApks(): Promise<void> {
+    try {
+      const cacheDir = ReactNativeBlobUtil.fs.dirs.CacheDir;
+      const files = await ReactNativeBlobUtil.fs.ls(cacheDir);
+
+      for (const file of files) {
+        if (file.startsWith('SportsManager_') && file.endsWith('.apk')) {
+          const filePath = `${cacheDir}/${file}`;
+          await ReactNativeBlobUtil.fs.unlink(filePath);
+        }
+      }
+    } catch {
+      // Ignorar errores de limpieza
+    }
   }
 
   // Suscribirse a cambios de estado de descarga

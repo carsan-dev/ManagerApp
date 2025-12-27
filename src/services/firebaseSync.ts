@@ -95,9 +95,32 @@ export const FirebaseSyncService = {
   },
 
   createSyncedData(alumnos: Alumno[], config: AppConfig): SyncedData {
+    // Función para eliminar todos los undefined recursivamente
+    const removeUndefined = (obj: any): any => {
+      if (obj === undefined) {
+        return null;
+      }
+      if (obj === null) {
+        return null;
+      }
+      if (Array.isArray(obj)) {
+        return obj.map(item => removeUndefined(item));
+      }
+      if (typeof obj === 'object' && obj !== null) {
+        const cleaned: Record<string, any> = {};
+        for (const [key, value] of Object.entries(obj)) {
+          if (value !== undefined) {
+            cleaned[key] = removeUndefined(value);
+          }
+        }
+        return cleaned;
+      }
+      return obj;
+    };
+
     return {
-      alumnos,
-      config,
+      alumnos: removeUndefined(alumnos) || [],
+      config: removeUndefined(config) || DEFAULT_CONFIG,
       lastUpdated: Date.now(),
     };
   },
