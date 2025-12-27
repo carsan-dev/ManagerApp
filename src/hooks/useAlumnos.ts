@@ -28,6 +28,7 @@ export function useAlumnos() {
 
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastSyncedRef = useRef<number>(0);
+  const initialSyncDoneRef = useRef<boolean>(false);
 
   // Sincronizar datos a la nube con debounce
   const syncToCloud = useCallback(async (alumnosToSync: Alumno[], configToSync: AppConfig) => {
@@ -112,6 +113,7 @@ export function useAlumnos() {
             await StorageService.saveTimestamp(timestamp);
             lastSyncedRef.current = timestamp;
           }
+          initialSyncDoneRef.current = true;
         } catch (error) {
           console.error('Error during initial sync:', error);
           // En caso de error, usar datos locales
@@ -127,6 +129,38 @@ export function useAlumnos() {
     };
     cargarDatos();
   }, []);
+
+  // Listener para sincronizar cuando el usuario inicie sesión o Firebase Auth esté listo
+  useEffect(() => {
+    const unsubscribe = AuthService.onAuthStateChanged(async (user) => {
+      // Si ya hicimos sync inicial o estamos cargando, no hacer nada
+      if (initialSyncDoneRef.current || isLoading) {
+        return;
+      }
+
+      if (user && alumnos.length > 0) {
+        // Usuario disponible y hay datos locales - sincronizar
+        try {
+          const localTimestamp = await StorageService.getTimestamp();
+          const cloudData = await FirebaseSyncService.fetchFromCloud(user.uid);
+
+          if (!cloudData && localTimestamp === 0) {
+            // Primera vez - subir datos locales a la nube
+            const timestamp = Date.now();
+            const syncedData = FirebaseSyncService.createSyncedData(alumnos, config);
+            await FirebaseSyncService.syncToCloud(user.uid, syncedData);
+            await StorageService.saveTimestamp(timestamp);
+            lastSyncedRef.current = timestamp;
+            initialSyncDoneRef.current = true;
+          }
+        } catch (error) {
+          console.error('Error syncing on auth change:', error);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [alumnos, config, isLoading]);
 
   // Guardar alumnos localmente y sincronizar a la nube
   useEffect(() => {
