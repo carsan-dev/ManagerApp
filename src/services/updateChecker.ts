@@ -1,5 +1,12 @@
 import { Alert, Platform, NativeModules, AppState, AppStateStatus } from 'react-native';
-import remoteConfig from '@react-native-firebase/remote-config';
+import {
+  getRemoteConfig,
+  setDefaults,
+  setConfigSettings,
+  fetchAndActivate,
+  getString,
+  getBoolean,
+} from '@react-native-firebase/remote-config';
 import ReactNativeBlobUtil from 'react-native-blob-util';
 import { version as currentVersion } from '../../package.json';
 
@@ -44,18 +51,20 @@ class UpdateChecker {
     }
 
     try {
-      await remoteConfig().setDefaults({
+      const config = getRemoteConfig();
+
+      await setDefaults(config, {
         latest_version: DEFAULT_CONFIG.latestVersion,
         force_update: DEFAULT_CONFIG.forceUpdate,
         update_url: DEFAULT_CONFIG.updateUrl,
         update_message: DEFAULT_CONFIG.updateMessage,
       });
 
-      await remoteConfig().setConfigSettings({
+      await setConfigSettings(config, {
         minimumFetchIntervalMillis: 3600000, // 1 hora en producción
       });
 
-      await remoteConfig().fetchAndActivate();
+      await fetchAndActivate(config);
       this.initialized = true;
     } catch (error) {
       console.error('Error initializing remote config:', error);
@@ -87,10 +96,11 @@ class UpdateChecker {
     try {
       await this.init();
 
-      const latestVersion = remoteConfig().getString('latest_version');
-      const forceUpdate = remoteConfig().getBoolean('force_update');
-      const updateUrl = remoteConfig().getString('update_url');
-      const updateMessage = remoteConfig().getString('update_message');
+      const config = getRemoteConfig();
+      const latestVersion = getString(config, 'latest_version');
+      const forceUpdate = getBoolean(config, 'force_update');
+      const updateUrl = getString(config, 'update_url');
+      const updateMessage = getString(config, 'update_message');
 
       // Comparar versiones
       if (this.compareVersions(latestVersion, currentVersion) > 0) {
@@ -270,7 +280,9 @@ class UpdateChecker {
           useDownloadManager: false,
           notification: false,
           mime: 'application/vnd.android.package-archive',
-          mediaScannable: true,
+          title: `SportsManager ${version}`,
+          description: 'Descargando actualización...',
+          mediaScannable: false,
         },
       })
         .fetch('GET', url)

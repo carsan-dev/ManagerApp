@@ -1,4 +1,10 @@
-import firestore from '@react-native-firebase/firestore';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+} from '@react-native-firebase/firestore';
 import { Alumno, AppConfig, SyncedData } from '../types';
 
 const USERS_COLLECTION = 'users';
@@ -15,19 +21,15 @@ const DEFAULT_CONFIG: AppConfig = {
 export const FirebaseSyncService = {
   async fetchFromCloud(uid: string): Promise<SyncedData | null> {
     try {
-      const docRef = firestore()
-        .collection(USERS_COLLECTION)
-        .doc(uid)
-        .collection('userData')
-        .doc(DATA_DOCUMENT);
+      const db = getFirestore();
+      const docRef = doc(collection(doc(collection(db, USERS_COLLECTION), uid), 'userData'), DATA_DOCUMENT);
+      const docSnap = await getDoc(docRef);
 
-      const doc = await docRef.get();
-
-      if (!doc.exists) {
+      if (!docSnap.exists()) {
         return null;
       }
 
-      const data = doc.data() as SyncedData;
+      const data = docSnap.data() as SyncedData;
       return data;
     } catch (error) {
       console.error('Error fetching from cloud:', error);
@@ -37,13 +39,9 @@ export const FirebaseSyncService = {
 
   async syncToCloud(uid: string, data: SyncedData): Promise<boolean> {
     try {
-      const docRef = firestore()
-        .collection(USERS_COLLECTION)
-        .doc(uid)
-        .collection('userData')
-        .doc(DATA_DOCUMENT);
-
-      await docRef.set(data, { merge: true });
+      const db = getFirestore();
+      const docRef = doc(collection(doc(collection(db, USERS_COLLECTION), uid), 'userData'), DATA_DOCUMENT);
+      await setDoc(docRef, data, { merge: true });
       return true;
     } catch (error) {
       console.error('Error syncing to cloud:', error);
