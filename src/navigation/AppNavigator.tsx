@@ -8,17 +8,31 @@ import LoginScreen from '../screens/LoginScreen';
 import { AuthService, User } from '../services/auth';
 import { updateChecker } from '../services/updateChecker';
 import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { DownloadProgress } from '../components/DownloadProgress';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 export const AppNavigator: React.FC = () => {
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState(true);
+  const [downloadState, setDownloadState] = useState({
+    isDownloading: false,
+    progress: 0,
+    version: '',
+  });
 
   useEffect(() => {
     const unsubscribe = AuthService.onAuthStateChanged((authUser) => {
       setUser(authUser);
       setLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  // Suscribirse a cambios de estado de descarga
+  useEffect(() => {
+    const unsubscribe = updateChecker.onDownloadStateChange((state) => {
+      setDownloadState(state);
     });
     return unsubscribe;
   }, []);
@@ -39,20 +53,28 @@ export const AppNavigator: React.FC = () => {
   }
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-      }}
-    >
-      {user ? (
-        <>
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Pdf" component={PdfScreen} />
-        </>
-      ) : (
-        <Stack.Screen name="Login" component={LoginScreen} />
-      )}
-    </Stack.Navigator>
+    <>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        {user ? (
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} />
+            <Stack.Screen name="Pdf" component={PdfScreen} />
+          </>
+        ) : (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        )}
+      </Stack.Navigator>
+
+      <DownloadProgress
+        visible={downloadState.isDownloading}
+        progress={downloadState.progress}
+        version={downloadState.version}
+      />
+    </>
   );
 };
 

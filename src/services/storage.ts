@@ -1,8 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alumno, Profesor } from '../types';
+import { Alumno, Profesor, AppConfig } from '../types';
+
+// Re-export para compatibilidad
+export type { AppConfig } from '../types';
 
 const ALUMNOS_KEY = 'alumnos';
 const CONFIG_KEY = 'config';
+const TIMESTAMP_KEY = 'lastUpdated';
 
 export const MAX_PROFESORES = 5;
 
@@ -39,11 +43,6 @@ type LegacyAppConfig = {
   nombreProfesor1?: string;
   nombreProfesor2?: string;
   proporcionProfesor1?: number;
-};
-
-export type AppConfig = {
-  profesores: Profesor[];
-  usarProporcionManual: boolean;
 };
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -128,6 +127,32 @@ export const StorageService = {
       await AsyncStorage.setItem(CONFIG_KEY, JSON.stringify(config));
     } catch (error) {
       console.error('Error al guardar configuración:', error);
+    }
+  },
+
+  async getTimestamp(): Promise<number> {
+    try {
+      const data = await AsyncStorage.getItem(TIMESTAMP_KEY);
+      return data ? parseInt(data, 10) : 0;
+    } catch (error) {
+      console.error('Error al cargar timestamp:', error);
+      return 0;
+    }
+  },
+
+  async saveTimestamp(timestamp: number): Promise<void> {
+    try {
+      await AsyncStorage.setItem(TIMESTAMP_KEY, timestamp.toString());
+    } catch (error) {
+      console.error('Error al guardar timestamp:', error);
+    }
+  },
+
+  async clearAllData(): Promise<void> {
+    try {
+      await AsyncStorage.multiRemove([ALUMNOS_KEY, CONFIG_KEY, TIMESTAMP_KEY]);
+    } catch (error) {
+      console.error('Error al limpiar datos:', error);
     }
   },
 };

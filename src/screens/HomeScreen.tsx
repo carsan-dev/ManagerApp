@@ -923,7 +923,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: spacing.lg,
-    paddingBottom: spacing.xxl,
+    paddingBottom: 100,
   },
   formContainer: {
     marginBottom: spacing.lg,

@@ -7,6 +7,7 @@ import {
 } from '@react-native-firebase/auth';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { StorageService } from './storage';
 
 // Configurar Google Sign-In
 GoogleSignin.configure({
@@ -48,6 +49,8 @@ export const AuthService = {
 
   async signOut(): Promise<void> {
     try {
+      // Borrar datos locales primero
+      await StorageService.clearAllData();
       await GoogleSignin.signOut();
       await firebaseSignOut(auth);
     } catch (error) {

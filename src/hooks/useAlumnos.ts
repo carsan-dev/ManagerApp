@@ -1,9 +1,12 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Alert } from 'react-native';
 import { Alumno, TipoAsistencia, Profesor } from '../types';
 import { StorageService, AppConfig } from '../services/storage';
+import { FirebaseSyncService } from '../services/firebaseSync';
+import { AuthService } from '../services/auth';
 
 const DIAS_MES = 30;
+const SYNC_DEBOUNCE_MS = 1000;
 
 export type ProporcionalProfesor = {
   nombre: string;
@@ -14,6 +17,7 @@ export type ProporcionalProfesor = {
 export function useAlumnos() {
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [config, setConfig] = useState<AppConfig>({
     profesores: [
       { nombre: 'Profesor 1', proporcion: 60 },
@@ -22,11 +26,49 @@ export function useAlumnos() {
     usarProporcionManual: false,
   });
 
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncedRef = useRef<number>(0);
+
+  // Sincronizar datos a la nube con debounce
+  const syncToCloud = useCallback(async (alumnosToSync: Alumno[], configToSync: AppConfig) => {
+    const user = AuthService.getCurrentUser();
+    if (!user) {
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      const timestamp = Date.now();
+      const syncedData = FirebaseSyncService.createSyncedData(alumnosToSync, configToSync);
+      const success = await FirebaseSyncService.syncToCloud(user.uid, syncedData);
+      if (success) {
+        await StorageService.saveTimestamp(timestamp);
+        lastSyncedRef.current = timestamp;
+      }
+    } catch (error) {
+      console.error('Error syncing to cloud:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  // Debounced sync
+  const debouncedSync = useCallback((alumnosToSync: Alumno[], configToSync: AppConfig) => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    syncTimeoutRef.current = setTimeout(() => {
+      syncToCloud(alumnosToSync, configToSync);
+    }, SYNC_DEBOUNCE_MS);
+  }, [syncToCloud]);
+
   useEffect(() => {
     const cargarDatos = async () => {
-      const [alumnosData, configData] = await Promise.all([
+      // Cargar datos locales primero
+      const [alumnosData, configData, localTimestamp] = await Promise.all([
         StorageService.getAlumnos(),
         StorageService.getConfig(),
+        StorageService.getTimestamp(),
       ]);
 
       // Migrar datos antiguos si no tienen los nuevos campos
@@ -37,24 +79,79 @@ export function useAlumnos() {
         diasAsistencia: alumno.diasAsistencia,
       }));
 
-      setAlumnos(datosMigrados);
-      setConfig(configData);
+      // Intentar sincronizar con la nube si hay usuario
+      const user = AuthService.getCurrentUser();
+      if (user) {
+        try {
+          const cloudData = await FirebaseSyncService.fetchFromCloud(user.uid);
+          const merged = FirebaseSyncService.mergeData(
+            datosMigrados,
+            configData,
+            localTimestamp,
+            cloudData
+          );
+
+          setAlumnos(merged.alumnos);
+          setConfig(merged.config);
+
+          // Guardar localmente si los datos de la nube eran más recientes
+          if (merged.needsLocalUpdate) {
+            await StorageService.saveAlumnos(merged.alumnos);
+            await StorageService.saveConfig(merged.config);
+            if (cloudData) {
+              await StorageService.saveTimestamp(cloudData.lastUpdated);
+              lastSyncedRef.current = cloudData.lastUpdated;
+            }
+          }
+
+          // Subir a la nube si los datos locales eran más recientes
+          if (merged.needsCloudUpdate) {
+            const timestamp = Date.now();
+            const syncedData = FirebaseSyncService.createSyncedData(merged.alumnos, merged.config);
+            await FirebaseSyncService.syncToCloud(user.uid, syncedData);
+            await StorageService.saveTimestamp(timestamp);
+            lastSyncedRef.current = timestamp;
+          }
+        } catch (error) {
+          console.error('Error during initial sync:', error);
+          // En caso de error, usar datos locales
+          setAlumnos(datosMigrados);
+          setConfig(configData);
+        }
+      } else {
+        setAlumnos(datosMigrados);
+        setConfig(configData);
+      }
+
       setIsLoading(false);
     };
     cargarDatos();
   }, []);
 
+  // Guardar alumnos localmente y sincronizar a la nube
   useEffect(() => {
     if (!isLoading) {
       StorageService.saveAlumnos(alumnos);
+      debouncedSync(alumnos, config);
     }
-  }, [alumnos, isLoading]);
+  }, [alumnos, isLoading, config, debouncedSync]);
 
+  // Guardar config localmente y sincronizar a la nube
   useEffect(() => {
     if (!isLoading) {
       StorageService.saveConfig(config);
+      debouncedSync(alumnos, config);
     }
-  }, [config, isLoading]);
+  }, [config, isLoading, alumnos, debouncedSync]);
+
+  // Limpiar timeout al desmontar
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const actualizarConfig = useCallback((nuevoConfig: Partial<AppConfig>) => {
     setConfig(prev => ({ ...prev, ...nuevoConfig }));
@@ -197,6 +294,7 @@ export function useAlumnos() {
   return {
     alumnos,
     isLoading,
+    isSyncing,
     agregarAlumno,
     editarAlumno,
     toggleActivo,
