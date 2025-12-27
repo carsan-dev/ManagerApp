@@ -19,16 +19,20 @@ Para compilar en .exe:
  Procedimiento para cambiar de versión:
 
   1. Subir versión en package.json (ej: "version": "1.0.1")
-  2. Crear APK: cd android && ./gradlew assembleRelease (  El APK se genera en android/app/build/outputs/apk/release/app-release.apk)
-  3. Subir a Drive y compartir con "Cualquier persona con el enlace"
-  4. Extraer el ID (la parte entre /d/ y /view):
+  2. Actualizar android/app/build.gradle (
+    versionCode 2
+    versionName "1.0.1"
+  )
+  3. Crear APK: cd android && ./gradlew assembleRelease (  El APK se genera en android/app/build/outputs/apk/release/app-release.apk)
+  4. Subir a Drive y compartir con "Cualquier persona con el enlace"
+  5. Extraer el ID (la parte entre /d/ y /view):
   1aBcDeFgHiJkLmNoPqRsTuVwXyZ
-  5. Convertir link:
+  6. Convertir link:
     - De: https://drive.google.com/file/d/XXXXX/view?usp=sharing
     - A: https://drive.google.com/uc?export=download&id=XXXXX
-  6. Actualizar Firebase Remote Config:
+  7. Actualizar Firebase Remote Config:
     - latest_version: 1.0.1
     - update_url: el link directo
     - force_update: true/false según quieras forzar
     - update_message: mensaje opcional
-  7. Publicar cambios en Firebase Console
+  8. Publicar cambios en Firebase Console
